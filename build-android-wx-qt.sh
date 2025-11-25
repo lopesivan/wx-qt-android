@@ -7,6 +7,7 @@
 
 set -e # Encerra em caso de erro
 set -u # Trata variáveis não definidas como erro
+set -o pipefail
 
 ################################################################################
 # CONFIGURAÇÕES GLOBAIS
@@ -17,32 +18,32 @@ echo "Inicializando Configurações do Ambiente"
 echo "=========================================="
 
 # Diretório base do projeto
-BASE_PATH="${PWD}"
+readonly BASE_PATH="${PWD}"
 
 # Configurações do Android NDK e SDK
-NDK_VERSION=21.4.7075529
-ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
-CONF_ANDROID_LEVEL=28
-ANDROID_NDK_PLATFORM="android-${CONF_ANDROID_LEVEL}"
+readonly NDK_VERSION=21.4.7075529
+readonly ANDROID_SDK_ROOT="${HOME}/Android/Sdk"
+readonly ANDROID_NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+readonly ANDROID_TOOLCHAIN_PATH="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64"
+readonly CONF_ANDROID_LEVEL=28
+readonly ANDROID_NDK_PLATFORM="android-${CONF_ANDROID_LEVEL}"
 
 # Arquiteturas Android a serem compiladas
-CONF_ANDROID_ARCHES="x86_64 arm64-v8a"
-CONF_ANDROID_ARCHES="arm64-v8a"
+CONF_ANDROID_ARCHES="${CONF_ANDROID_ARCHES:-arm64-v8a}"
 
 # Diretórios de ferramentas customizadas
-QT5_CUSTOM_DIR="${BASE_PATH}/qt/5.15.2/android"
-PATCHELF="${BASE_PATH}/patchelf"
-WX_ROOT="${BASE_PATH}/wxWidgets"
-CONF_SYSROOT="${BASE_PATH}/sysroot"
-NDKDEPENDS="${BASE_PATH}/ndk-depends"
+readonly QT5_CUSTOM_DIR="${BASE_PATH}/qt/5.15.2/android"
+readonly PATCHELF="${BASE_PATH}/patchelf"
+readonly WX_ROOT="${BASE_PATH}/wxWidgets"
+readonly CONF_SYSROOT="${BASE_PATH}/sysroot"
+readonly NDKDEPENDS="${BASE_PATH}/ndk-depends"
 
 # Configurações do wxWidgets
-WX_VERSION=3.3
-WX_INC_DIR="${WX_ROOT}/include"
+readonly WX_VERSION=3.3
+readonly WX_INC_DIR="${WX_ROOT}/include"
 
 # Adiciona ferramentas ao PATH
-export PATH="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin:${QT5_CUSTOM_DIR}/bin:$PATH"
+export PATH="${ANDROID_TOOLCHAIN_PATH}/bin:${QT5_CUSTOM_DIR}/bin:${PATH}"
 
 # Cria diretório sysroot se não existir
 mkdir -p "${CONF_SYSROOT}"
@@ -59,7 +60,7 @@ setup_arch_environment() {
 
     echo "  → Configurando ambiente para arquitetura: ${arch}"
 
-    local CONF_ANDROID_ARCH="${arch}"
+    CONF_ANDROID_ARCH="${arch}"
 
     # Mapeia nome da arquitetura Android para nome do compilador
     case ${CONF_ANDROID_ARCH} in
@@ -71,11 +72,11 @@ setup_arch_environment() {
             ;;
     esac
 
-    export WX_CONFHOST="${CONF_COMPILER_ARCH}-linux-android${CONF_ANDROID_LEVEL}"
+    WX_CONFHOST="${CONF_COMPILER_ARCH}-linux-android${CONF_ANDROID_LEVEL}"
 
     # Estrutura de diretórios específica da arquitetura
-    export CONF_SYSROOT_ARCH="${CONF_SYSROOT}/${CONF_ANDROID_ARCH}"
-    export CONF_SYSROOT_USR="${CONF_SYSROOT_ARCH}/usr"
+    CONF_SYSROOT_ARCH="${CONF_SYSROOT}/${CONF_ANDROID_ARCH}"
+    CONF_SYSROOT_USR="${CONF_SYSROOT_ARCH}/usr"
 
     # Cria estrutura de diretórios
     mkdir -p "${CONF_SYSROOT_USR}"/{lib,include,bin}
@@ -130,10 +131,10 @@ build_wxwidgets_arch() {
     pushd "build_${CONF_ANDROID_ARCH}" >/dev/null
 
     # Flags de compilação
-    export CPPFLAGS=""
-    export CXXFLAGS="${CPPFLAGS}"
-    export CFLAGS="${CPPFLAGS}"
-    export LDFLAGS="-llog -Wl,-rpath-link=${CONF_SYSROOT_USR}/lib"
+    local CPPFLAGS=""
+    local CXXFLAGS="${CPPFLAGS}"
+    local CFLAGS="${CPPFLAGS}"
+    local LDFLAGS="-llog -Wl,-rpath-link=${CONF_SYSROOT_USR}/lib"
 
     echo "  → Configurando CMake..."
     cmake --fresh \
